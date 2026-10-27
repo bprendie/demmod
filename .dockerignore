@@ -1,0 +1,8 @@
+*
+!go.mod
+!*.go
+!web/
+!web/**
+!Dockerfile
+!native/
+!native/**
