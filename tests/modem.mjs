@@ -38,6 +38,26 @@ test('terminal preserves line positions, colors and cursor commands',()=>{
  assert.equal(rows[2][4],'!');
 });
 
+test('terminal renders all 256 ANSI foreground and background colors',()=>{
+ const drawn=[];
+ const ctx={fillRect(x,y,w,h){if(w===12&&h===18)drawn.push(['background',this.fillStyle]);},fillText(c){if(c!==' ')drawn.push(['text',this.fillStyle]);}};
+ const canvas={getContext:()=>ctx};
+ const levels=[0,95,135,175,215,255];
+ const base=['#000000','#aa0000','#00aa00','#aa5500','#0000aa','#aa00aa','#00aaaa','#aaaaaa','#555555','#ff5555','#55ff55','#ffff55','#5555ff','#ff55ff','#55ffff','#ffffff'];
+ for(let index=0;index<256;index++){
+  const cube=index-16;
+  const rgb=index<16?null:index<232?[levels[Math.floor(cube/36)],levels[Math.floor(cube/6)%6],levels[cube%6]]:Array(3).fill(8+(index-232)*10);
+  const expected=rgb?'#'+rgb.map(v=>v.toString(16).padStart(2,'0')).join(''):base[index];
+  drawn.length=0;
+  renderTerminal(canvas,`\x1b[38;5;${index};48;5;${index}mX\x1b[0m`);
+  assert.ok(drawn.some(([kind,color])=>kind==='text'&&color===expected),`foreground ${index}`);
+  if(index>0)assert.ok(drawn.some(([kind,color])=>kind==='background'&&color===expected),`background ${index}`);
+ }
+ drawn.length=0;
+ renderTerminal(canvas,'\x1b[1;31mA\x1b[38;5;196mB\x1b[0mC');
+ assert.deepEqual(drawn.filter(([kind])=>kind==='text').map(([,color])=>color),['#ff5555','#ff0000','#aaaaaa']);
+});
+
 test('pasted Weazl ASCII art exceeds the former cap but round-trips without trimming',()=>{
  const text=readFileSync(new URL('./fixtures/weazl-ascii.txt',import.meta.url),'utf8').replace(/\r?\n/g,'\r\n');
  const bytes=toBytes(text,'cp437');
