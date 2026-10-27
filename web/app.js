@@ -102,7 +102,11 @@ function updatePreview(){
   paint(sourceText());$('terminalState').textContent='SOURCE PREVIEW';
   $('charsetLabel').textContent=$('encoding').value.toUpperCase();
   if(!bytes.length)return problem('Add a message.','Paste text or import a file to create a recording.');
-  if(bytes.length>limit)return problem('Message exceeds five minutes.','This message has '+bytes.length.toLocaleString()+' bytes. The limit is '+limit.toLocaleString()+' at '+rate()+' bps.');
+  if(bytes.length>limit){
+   const faster=Object.keys(profiles).map(Number).find(value=>value>rate()&&bytes.length<=maxBytes(value));
+   $('settings').open=true;
+   return problem(faster?'Choose a faster modem speed.':'Message exceeds five minutes.', 'This message has '+bytes.length.toLocaleString()+' bytes. '+(faster?'Choose '+faster+' bps or faster in Modem settings to fit within five minutes.':'The five-minute limit is '+maxBytes(2400).toLocaleString()+' bytes at 2400 bps. Shorten the message to encode it.'));
+  }
   $('mainAction').disabled=false;return true;
  }catch(e){$('byteCount').textContent='Character encoding needs attention';return problem('Character needs a different encoding.',e.message);}
 }
@@ -241,8 +245,12 @@ $('loadDemo').onclick=()=>{$('source').value=demo;changed();};
 $('importText').onclick=()=>$('textFile').click();
 $('textFile').onchange=async()=>{
  const file=$('textFile').files[0];if(!file)return;
- if(file.size>maxBytes(rate())){status('Message too long.','Limit: '+maxBytes(rate()).toLocaleString()+' bytes at this speed.');return;}
- $('source').value=fromBytes(new Uint8Array(await file.arrayBuffer()),$('encoding').value).replace(/\x1b\[/g,'\\e[');changed();
+ // Import and preview are independent of the selected transmission speed.
+ if(file.size>1024*1024){status('Text file is too large.','Choose an ANSI or text file up to 1 MiB.');$('textFile').value='';return;}
+ try{
+  $('source').value=fromBytes(new Uint8Array(await file.arrayBuffer()),$('encoding').value).replace(/\x1b\[/g,'\\e[');changed();
+ }catch(e){status('Could not open text file.',e.message);}
+ finally{$('textFile').value='';}
 };
 $('chooseAudio').onclick=()=>$('audioFile').click();
 $('audioFile').onchange=()=>pickAudio($('audioFile').files[0]);
